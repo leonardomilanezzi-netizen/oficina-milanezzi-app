@@ -8,9 +8,10 @@ import re
 from datetime import datetime
 
 app = Flask(__name__)
+# O CORS permite que o seu site (Vercel) converse com o seu servidor (Render)
 CORS(app)
 
-# DADOS PADRONIZADOS (Conforme modelo Milanezzi) [cite: 4-9]
+# DADOS DA EMPRESA (Baseado no modelo GOL-BRUNA.pdf)
 EMPRESA = {
     "nome": "AUTO MECANICA MILANEZZI",
     "proprietario": "FAUSTO MILANEZZI 29382323813",
@@ -20,8 +21,9 @@ EMPRESA = {
     "endereco": "RUA MANOEL CIRIACO RAMOS NOGUEIRA, 1316-JD. BELA VISTA - ANGATUBA-SP"
 }
 
-import os
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+# CONFIGURAÇÃO SEGURA: Lê a chave das configurações do servidor
+API_KEY = os.getenv("GEMINI_API_KEY")
+genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-2.5-flash')
 
 @app.route('/gerar-pdf', methods=['POST'])
@@ -30,10 +32,9 @@ def gerar_pdf():
     texto_usuario = dados_requisicao.get('texto', '')
 
     try:
-        # Prompt para extrair JSON sem confiar nos cálculos da IA
         prompt = (
             f"Extraia os dados desta Ordem de Serviço: '{texto_usuario}'. "
-            "Retorne APENAS um JSON puro (sem markdown) neste formato exato: "
+            "Retorne APENAS um JSON puro neste formato: "
             "{'cliente': '', 'veiculo': '', 'placa': '', 'km': '', 'chassi': '', "
             "'produtos': [{'qtd': 0, 'desc': '', 'unit': 0.0}], "
             "'servicos': [{'desc': '', 'valor': 0.0}]}"
@@ -43,28 +44,25 @@ def gerar_pdf():
         json_limpo = re.sub(r'```json|```', '', response.text).strip()
         data = json.loads(json_limpo)
 
-        # --- LÓGICA MATEMÁTICA E PADRONIZAÇÃO (PYTHON) ---
+        # Cálculo Matemático pelo Python (Garante precisão) [cite: 17, 20]
         total_produtos = 0
         for p in data.get('produtos', []):
-            p['desc'] = str(p['desc']).capitalize() # Primeira letra maiúscula
-            p['unit'] = float(p.get('unit', 0))
-            p['qtd'] = float(p.get('qtd', 0))
-            p['total_item'] = p['qtd'] * p['unit'] # Cálculo garantido [cite: 16]
+            p['desc'] = str(p['desc']).capitalize()
+            p['total_item'] = float(p.get('qtd', 0)) * float(p.get('unit', 0))
             total_produtos += p['total_item']
 
         total_servicos = 0
         for s in data.get('servicos', []):
-            s['desc'] = str(s['desc']).capitalize() # Primeira letra maiúscula
-            s['valor'] = float(s.get('valor', 0))
-            total_servicos += s['valor'] # Cálculo garantido [cite: 20]
+            s['desc'] = str(s['desc']).capitalize()
+            total_servicos += float(s.get('valor', 0))
 
         total_geral = total_produtos + total_servicos # [cite: 21]
 
-        # --- CONSTRUÇÃO DO PDF (LAYOUT GOL-BRUNA) ---
+        # Geração do PDF Padronizado [cite: 15, 18]
         pdf = FPDF()
         pdf.add_page()
         
-        # Cabeçalho Esquerda (Logo e Empresa) [cite: 4-9]
+        # Cabeçalho Esquerda (Dados da Oficina) [cite: 4-9]
         if os.path.exists("logo.png"):
             pdf.image("logo.png", 10, 8, 30)
             pdf.set_x(45)
@@ -82,9 +80,9 @@ def gerar_pdf():
         pdf.set_x(x_off)
         pdf.multi_cell(0, 4, EMPRESA["endereco"])
 
-        # Cabeçalho Direita (Número e Data) [cite: 10, 11]
+        # Info OS à Direita [cite: 10, 11]
         pdf.set_font("Arial", 'B', 10)
-        pdf.text(140, 15, "Ordem de servico Numero")
+        pdf.text(140, 15, "Ordem de servico")
         pdf.set_font("Arial", size=9)
         pdf.text(140, 20, f"Entrada: {datetime.now().strftime('%d/%m/%Y')}")
 
@@ -92,12 +90,12 @@ def gerar_pdf():
         pdf.line(10, pdf.get_y(), 200, pdf.get_y())
         pdf.ln(5)
 
-        # Dados do Veículo [cite: 1, 2, 12, 13]
+        # Dados do Cliente e Veículo [cite: 1, 2, 12-14]
         pdf.set_font("Arial", 'B', 9)
         pdf.cell(0, 5, f"Cliente: {data.get('cliente', '').upper()}", ln=True)
         pdf.set_font("Arial", size=9)
         pdf.cell(0, 5, f"Veiculo: {data.get('veiculo', '')}  |  Placa: {data.get('placa', '')}", ln=True)
-        pdf.cell(0, 5, f"Km: {data.get('km', '')}  |  Chassi: {data.get('chassi', 'Não informado')}", ln=True)
+        pdf.cell(0, 5, f"Km: {data.get('km', '')}  |  Chassi: {data.get('chassi', '')}", ln=True)
         pdf.ln(5)
 
         # Tabela de Produtos [cite: 16]
@@ -138,13 +136,14 @@ def gerar_pdf():
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(190, 10, f"TOTAL: R$ {total_geral:.2f}", border=1, ln=True, align='R')
 
-        path = os.path.join(os.getcwd(), "Orcamento_Milanezzi_Final.pdf")
-        pdf.output(path)
-        return send_file(path, as_attachment=True)
+        caminho_pdf = os.path.join(os.getcwd(), "OS_Final.pdf")
+        pdf.output(caminho_pdf)
+        return send_file(caminho_pdf, as_attachment=True)
 
     except Exception as e:
         return str(e), 500
 
 if __name__ == '__main__':
-
-    app.run(port=5000)
+    # O Render define a porta automaticamente
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
