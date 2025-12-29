@@ -20,7 +20,8 @@ EMPRESA = {
     "endereco": "RUA MANOEL CIRIACO RAMOS NOGUEIRA, 1316-JD. BELA VISTA - ANGATUBA-SP"
 }
 
-genai.configure(api_key="AIzaSyB3ZPwsoMrVd_1CfVcPjLtt8_D0HX85e5g")
+import os
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-2.5-flash')
 
 @app.route('/gerar-pdf', methods=['POST'])
@@ -145,4 +146,5 @@ def gerar_pdf():
         return str(e), 500
 
 if __name__ == '__main__':
+
     app.run(port=5000)
