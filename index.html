@@ -1,25 +1,29 @@
 <!DOCTYPE html>
-<html lang="pt-pt">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Oficina Milanezzi - Sistema de Voz</title>
+    <title>Oficina Milanezzi - Orçamento por Voz</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; display: flex; justify-content: center; }
-        .box { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 600px; text-align: center; }
-        textarea { width: 100%; height: 250px; margin: 20px 0; padding: 15px; border-radius: 10px; border: 1px solid #ddd; font-size: 16px; box-sizing: border-box; }
-        .btn { padding: 15px 35px; border-radius: 30px; border: none; font-weight: bold; cursor: pointer; font-size: 16px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; text-align: center; }
+        .card { background: white; padding: 25px; border-radius: 15px; max-width: 600px; margin: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        textarea { width: 100%; height: 250px; margin: 15px 0; padding: 12px; border-radius: 10px; border: 1px solid #ddd; font-size: 16px; box-sizing: border-box; }
+        .btn { padding: 15px 35px; border-radius: 30px; border: none; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.3s; }
         #btnVoz { background: #e74c3c; color: white; }
         #btnGerar { background: #27ae60; color: white; display: none; margin-top: 10px; }
-        .info { color: #7f8c8d; font-size: 0.9em; margin-bottom: 15px; }
+        .status { color: #7f8c8d; font-style: italic; margin-bottom: 10px; }
     </style>
 </head>
 <body>
-    <div class="box">
+    <div class="card">
         <h2>Gerador de Ordem de Serviço</h2>
+        <p>Toque no microfone e descreva o serviço.</p>
+        
         <button id="btnVoz" class="btn">🎙️ Iniciar Gravação</button>
-        <textarea id="editor" placeholder="A transcrição aparecerá aqui..."></textarea>
-        <div id="status" class="info">Pronto para começar.</div>
+        
+        <textarea id="editor" placeholder="A transcrição aparecerá aqui para você conferir..."></textarea>
+        
+        <div id="status" class="status">Pronto para iniciar.</div>
         <button id="btnGerar" class="btn">📄 Confirmar e Gerar PDF</button>
     </div>
 
@@ -44,53 +48,64 @@
                 recognition.start();
                 gravando = true;
                 btnVoz.innerText = "🛑 Parar e Revisar";
-                status.innerText = "Ouvindo... descreva o serviço.";
+                status.innerText = "Ouvindo... descreva o cliente, veículo e itens.";
             } else {
                 recognition.stop();
                 gravando = false;
                 btnVoz.innerText = "🎙️ Gravar Novamente";
                 btnGerar.style.display = 'inline-block';
-                status.innerText = "Verifique se a placa tem 7 dígitos no texto.";
+                status.innerText = "Revise o texto. Verifique se a placa tem 7 dígitos.";
             }
         };
 
         recognition.onresult = (event) => {
-            let interimText = '';
+            let interimTranscript = '';
             for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) textoConfirmado += event.results[i][0].transcript + ' ';
-                else interimText += event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    textoConfirmado += event.results[i][0].transcript + ' ';
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
             }
-            editor.value = textoConfirmado + interimText;
+            editor.value = textoConfirmado + interimTranscript;
         };
 
         btnGerar.onclick = async () => {
-            // VALIDAÇÃO DE PLACA (7 caracteres)
+            const textoParaEnviar = editor.value;
+            
+            // Validação de Placa (7 caracteres)
             const regexPlaca = /\b[A-Za-z0-9]{7}\b/;
-            if (!regexPlaca.test(editor.value)) {
-                alert("ERRO: Placa de 7 caracteres não encontrada!");
+            if (!regexPlaca.test(textoParaEnviar)) {
+                alert("ERRO: Nenhuma placa de 7 caracteres encontrada. Corrija o texto antes de prosseguir!");
                 return;
             }
 
-            status.innerText = "Gerando orçamento...";
-            // SUBSTITUA O LINK ABAIXO PELO SEU LINK DO RENDER
-            const response = await fetch('https://oficina-milanezzi-app.onrender.com', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ texto: editor.value })
-            });
+            status.innerText = "Calculando e gerando PDF na nuvem... aguarde.";
+            
+            try {
+                // USANDO A SUA URL DO RENDER
+                const response = await fetch('https://oficina-milanezzi-app.onrender.com/gerar-pdf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ texto: textoParaEnviar })
+                });
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `OS_Oficina_${Date.now()}.pdf`;
-                a.click();
-                status.innerText = "Sucesso! PDF gerado.";
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `OS_Milanezzi_${Date.now()}.pdf`;
+                    a.click();
+                    status.innerText = "Sucesso! O PDF foi baixado.";
+                } else {
+                    status.innerText = "Erro no servidor. Tente novamente.";
+                }
+            } catch (err) {
+                status.innerText = "Erro de conexão com o Render.";
+                console.error(err);
             }
         };
     </script>
 </body>
 </html>
-
-
