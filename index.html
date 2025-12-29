@@ -73,7 +73,7 @@
 
             status.innerText = "Gerando orçamento...";
             // SUBSTITUA O LINK ABAIXO PELO SEU LINK DO RENDER
-            const response = await fetch('https://SUA-URL-NO-RENDER.onrender.com/gerar-pdf', {
+            const response = await fetch('https://oficina-milanezzi-app.onrender.com/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ texto: editor.value })
@@ -92,3 +92,4 @@
     </script>
 </body>
 </html>
+
