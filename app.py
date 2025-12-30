@@ -29,7 +29,7 @@ else:
     print("ERRO: Variável GEMINI_API_KEY não configurada no Render!")
 
 # Usando 1.5-flash para maior estabilidade e cota gratuita
-model = genai.GenerativeModel('gemini-2.5-flash')
+model = genai.GenerativeModel('gemini-2.0-flash')
 
 def limpar_valor(valor):
     """Garante que preços como 'R$ 40,00' virem números decimais"""
@@ -174,3 +174,4 @@ if __name__ == '__main__':
     # Porta dinâmica para Render
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
+
