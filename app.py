@@ -28,7 +28,7 @@ if API_KEY:
 else:
     print("ALERTA: Variável GEMINI_API_KEY não configurada no Render!")
 
-model = genai.GenerativeModel('gemini-2.5-flash')
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # Funções Auxiliares de Limpeza e Segurança
 def limpar_valor(valor):
@@ -178,5 +178,6 @@ if __name__ == '__main__':
     # Configuração para nuvem (Render)
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
+
 
 
