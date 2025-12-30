@@ -11,7 +11,7 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 
-# [cite: 1-6] Dados da Oficina Milanezzi
+# Dados da Oficina Milanezzi
 EMPRESA = {
     "nome": "AUTO MECANICA MILANEZZI",
     "proprietario": "FAUSTO MILANEZZI 29382323813",
@@ -24,7 +24,7 @@ EMPRESA = {
 API_KEY = os.getenv("GEMINI_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
-model = genai.GenerativeModel('gemini-2.5-flash')
+model = genai.GenerativeModel('gemini-2.0-flash')
 
 def limpar_valor(valor):
     if isinstance(valor, (int, float)): return float(valor)
@@ -59,13 +59,13 @@ def gerar_pdf():
         json_texto = re.sub(r'```json|```', '', response.text).strip()
         data = json.loads(json_texto)
 
-        # [cite: 8] Forçar placa para MAIÚSCULO
+        # Modificação: Placa sempre em MAIÚSCULO
         placa_maiuscula = str(data.get('placa', '')).upper()
 
         pdf = FPDF()
         pdf.add_page()
         
-        # [cite: 1-6] Cabeçalho estilo Milanezzi
+        # Cabeçalho
         if os.path.exists("logo.png"):
             pdf.image("logo.png", 10, 8, 33)
             pdf.set_x(45)
@@ -81,7 +81,7 @@ def gerar_pdf():
         pdf.set_x(x_pos)
         pdf.cell(0, 5, s(f"{EMPRESA['fone']} | {EMPRESA['email']}"), ln=True)
         
-        # [cite: 5] Ajuste de Título e Data
+        # Modificação: Título sem número
         pdf.set_font("Arial", 'B', 10)
         pdf.text(145, 15, s("Ordem de servico"))
         pdf.set_font("Arial", size=9)
@@ -93,7 +93,7 @@ def gerar_pdf():
         pdf.line(10, pdf.get_y(), 200, pdf.get_y())
         pdf.ln(5)
 
-        # [cite: 7, 8] Dados do Cliente e Veículo
+        # Dados Cliente/Veículo
         pdf.set_font("Arial", 'B', 10)
         pdf.cell(0, 6, s(f"Cliente: {data.get('cliente', '').upper()}"), ln=True)
         pdf.set_font("Arial", size=10)
@@ -101,7 +101,7 @@ def gerar_pdf():
         pdf.cell(0, 6, s(f"Km: {data.get('km', '')} | Chassi: {data.get('chassi', '')}"), ln=True)
         pdf.ln(5)
 
-        # [cite: 9, 10] Tabela de Produtos
+        # Tabela de Produtos (estilo do PDF enviado)
         pdf.set_font("Arial", 'B', 10)
         pdf.cell(0, 8, s("Produtos"), ln=True)
         pdf.set_fill_color(240, 240, 240)
@@ -122,7 +122,7 @@ def gerar_pdf():
             pdf.cell(35, 7, f"R$ {unit:.2f}", 1, 0, 'R')
             pdf.cell(40, 7, f"R$ {sub:.2f}", 1, 1, 'R')
 
-        # [cite: 11, 12] Tabela de Serviços
+        # Tabela de Serviços
         pdf.ln(5)
         pdf.set_font("Arial", 'B', 10)
         pdf.cell(0, 8, s("Servicos"), ln=True)
@@ -137,7 +137,7 @@ def gerar_pdf():
             pdf.cell(150, 7, s(str(sv.get('desc', '')).capitalize()), 1)
             pdf.cell(40, 7, f"R$ {val:.2f}", 1, 1, 'R')
 
-        # [cite: 13-15] Resumo Final
+        # Totais Finais
         pdf.ln(5)
         pdf.set_font("Arial", 'B', 10)
         pdf.cell(190, 7, s(f"Total De Produtos: R$ {total_p:.2f}"), ln=True, align='R')
