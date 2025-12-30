@@ -11,7 +11,7 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 
-# [cite: 4-9] Dados da Oficina Milanezzi
+[cite_start]# [cite: 1, 2] Dados Padronizados conforme modelo Milanezzi
 EMPRESA = {
     "nome": "AUTO MECANICA MILANEZZI",
     "proprietario": "FAUSTO MILANEZZI 29382323813",
@@ -21,13 +21,10 @@ EMPRESA = {
     "endereco": "RUA MANOEL CIRIACO RAMOS NOGUEIRA, 1316-JD. BELA VISTA - ANGATUBA-SP"
 }
 
-# CONFIGURAÇÃO SEGURA: Não escreva a chave aqui!
+# Configuração Segura (Mantendo a lógica que deu certo)
 API_KEY = os.getenv("GEMINI_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
-else:
-    print("ALERTA: Variável GEMINI_API_KEY não encontrada no Render!")
-
 model = genai.GenerativeModel('gemini-2.5-flash')
 
 def limpar_valor(valor):
@@ -39,11 +36,12 @@ def limpar_valor(valor):
         return 0.0
 
 def s(t):
+    """Trata acentos para evitar erro no FPDF"""
     return str(t).encode('latin-1', 'replace').decode('latin-1')
 
 @app.route('/')
 def home():
-    return "Servidor Milanezzi Online!"
+    return "Servidor Milanezzi Online e Protegido!"
 
 @app.route('/gerar-pdf', methods=['POST'])
 def gerar_pdf():
@@ -63,12 +61,13 @@ def gerar_pdf():
         json_texto = re.sub(r'```json|```', '', response.text).strip()
         data = json.loads(json_texto)
 
-        # PLACA MAIÚSCULA
-        placa_up = str(data.get('placa', '')).upper()
+        # --- MODIFICAÇÃO VISUAL: PLACA MAIÚSCULA ---
+        placa_formatada = str(data.get('placa', '')).upper()
 
         pdf = FPDF()
         pdf.add_page()
         
+        # [cite_start]Cabeçalho [cite: 1]
         if os.path.exists("logo.png"):
             pdf.image("logo.png", 10, 8, 33)
             pdf.set_x(45)
@@ -80,12 +79,12 @@ def gerar_pdf():
         pdf.set_x(x_pos)
         pdf.cell(0, 5, s(EMPRESA["proprietario"]), ln=True)
         pdf.set_x(x_pos)
-        pdf.cell(0, 5, s(EMPRESA["cnpj"]), ln=True)
+        pdf.cell(0, 5, s(f"CNPJ: {EMPRESA['cnpj']}"), ln=True)
         pdf.set_x(x_pos)
         pdf.cell(0, 5, s(f"{EMPRESA['fone']} | {EMPRESA['email']}"), ln=True)
         
-        # TÍTULO SEM NÚMERO
-        pdf.set_font("Arial", 'B', 10)
+        # --- MODIFICAÇÃO VISUAL: TÍTULO SEM NÚMERO ---
+        pdf.set_font("Arial", 'B', 11)
         pdf.text(145, 15, s("Ordem de servico"))
         pdf.set_font("Arial", size=9)
         pdf.text(145, 20, s(f"Entrada: {datetime.now().strftime('%d/%m/%Y')}"))
@@ -96,14 +95,15 @@ def gerar_pdf():
         pdf.line(10, pdf.get_y(), 200, pdf.get_y())
         pdf.ln(5)
 
+        # [cite_start]Info Cliente/Veículo [cite: 2]
         pdf.set_font("Arial", 'B', 10)
         pdf.cell(0, 6, s(f"Cliente: {data.get('cliente', '').upper()}"), ln=True)
         pdf.set_font("Arial", size=10)
-        pdf.cell(0, 6, s(f"Veiculo: {data.get('veiculo', '')} | Placa: {placa_up}"), ln=True)
+        pdf.cell(0, 6, s(f"Veiculo: {data.get('veiculo', '')} | Placa: {placa_formatada}"), ln=True)
         pdf.cell(0, 6, s(f"Km: {data.get('km', '')} | Chassi: {data.get('chassi', '')}"), ln=True)
         pdf.ln(5)
 
-        # TABELA PRODUTOS (CAPITALIZADOS)
+        # [cite_start]Tabela de Produtos [cite: 3]
         pdf.set_font("Arial", 'B', 10)
         pdf.cell(0, 8, s("Produtos"), ln=True)
         pdf.set_fill_color(240, 240, 240)
@@ -112,37 +112,55 @@ def gerar_pdf():
         pdf.cell(35, 8, "Valor Unit.", 1, 0, 'C', True)
         pdf.cell(40, 8, "Valor Total", 1, 1, 'C', True)
         
-        total_p = 0
+        total_prod = 0
         pdf.set_font("Arial", size=9)
         for p in data.get('produtos', []):
-            qtd = limpar_valor(p.get('qtd', 0))
+            # --- MODIFICAÇÃO VISUAL: ITEM CAPITALIZADO ---
+            desc_cap = str(p.get('desc', '')).strip().capitalize()
+            qtd = limpar_valor(p.get('qtd', 1))
             unit = limpar_valor(p.get('unit', 0))
-            sub = qtd * unit
-            total_p += sub
+            subtotal = qtd * unit
+            total_prod += subtotal
+            
             pdf.cell(15, 7, str(int(qtd)), 1, 0, 'C')
-            pdf.cell(100, 7, s(str(p.get('desc', '')).capitalize()), 1) # Letra maiúscula no início
+            pdf.cell(100, 7, s(desc_cap), 1)
             pdf.cell(35, 7, f"R$ {unit:.2f}", 1, 0, 'R')
-            pdf.cell(40, 7, f"R$ {sub:.2f}", 1, 1, 'R')
+            pdf.cell(40, 7, f"R$ {subtotal:.2f}", 1, 1, 'R')
 
-        # TABELA SERVIÇOS
-        total_s = sum(limpar_valor(sv.get('valor', 0)) for sv in data.get('servicos', []))
+        # [cite_start]Tabela de Serviços [cite: 4, 5]
+        total_serv = 0
+        servicos_lista = data.get('servicos', [])
+        if servicos_lista:
+            pdf.ln(5)
+            pdf.set_font("Arial", 'B', 10)
+            pdf.cell(0, 8, s("Servicos"), ln=True)
+            pdf.cell(150, 8, s("Descricao"), 1, 0, 'L', True)
+            pdf.cell(40, 8, "Valor Total", 1, 1, 'C', True)
+            
+            pdf.set_font("Arial", size=9)
+            for sv in servicos_lista:
+                desc_sv = str(sv.get('desc', '')).strip().capitalize()
+                valor = limpar_valor(sv.get('valor', 0))
+                total_serv += valor
+                pdf.cell(150, 7, s(desc_sv), 1)
+                pdf.cell(40, 7, f"R$ {valor:.2f}", 1, 1, 'R')
 
+        # [cite_start]Totais Finais [cite: 6]
         pdf.ln(5)
         pdf.set_font("Arial", 'B', 10)
-        pdf.cell(190, 7, s(f"Total De Produtos: R$ {total_p:.2f}"), ln=True, align='R')
-        pdf.cell(190, 7, s(f"Total De Servicos: R$ {total_s:.2f}"), ln=True, align='R')
+        pdf.cell(190, 7, s(f"Total De Produtos: R$ {total_prod:.2f}"), ln=True, align='R')
+        pdf.cell(190, 7, s(f"Total De Servicos R$ {total_serv:.2f}"), ln=True, align='R')
         pdf.set_font("Arial", 'B', 12)
-        pdf.cell(190, 12, s(f"TOTAL: R$ {total_p + total_s:.2f}"), border=1, ln=True, align='R')
+        pdf.cell(190, 12, s(f"TOTAL: R$ {total_prod + total_serv:.2f}"), border=1, ln=True, align='R')
 
-        path = os.path.join(os.getcwd(), "OS_Final_Milanezzi.pdf")
-        pdf.output(path)
-        return send_file(path, as_attachment=True)
+        caminho = os.path.join(os.getcwd(), "Orcamento_Milanezzi.pdf")
+        pdf.output(caminho)
+        return send_file(caminho, as_attachment=True)
 
     except Exception:
-        print(f"ERRO NO SERVIDOR:\n{traceback.format_exc()}")
+        print(f"--- ERRO NO RENDER ---\n{traceback.format_exc()}")
         return "Erro interno no servidor", 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
-
