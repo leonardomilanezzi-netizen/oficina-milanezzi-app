@@ -11,7 +11,7 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 
-[cite_start]# [cite: 4-9] Dados Padronizados Milanezzi
+# [cite: 4-9] Dados Padronizados Milanezzi
 EMPRESA = {
     "nome": "AUTO MECANICA MILANEZZI",
     "proprietario": "FAUSTO MILANEZZI 29382323813",
@@ -178,3 +178,4 @@ if __name__ == '__main__':
     # Configuração para nuvem (Render)
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
+
